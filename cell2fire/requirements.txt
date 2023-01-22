@@ -1,8 +1,11 @@
-numpy
 pandas
 matplotlib
 seaborn
-pprint
-imread
+#imread
 tqdm
-opencv
+opencv-python
+networkx
+rasterio
+scipy
+deap
+wheel
