@@ -35,6 +35,16 @@ original draft of a paper on
 - imread
 - networkx (for stats module)
 
+# Requirements for Windows
+
+- Tested with Python 3.10
+- Install binary distribution of imread from [this repo](https://www.lfd.uci.edu/~gohlke/pythonlibs/#imread). Tested with `imread-0.7.4-cp310-cp310-win_amd64.whl` with command
+`pip install imread-0.7.4-cp310-cp310-win_amd64.whl`
+- Download Eigen 3.4.0 from official [Eigen site](https://eigen.tuxfamily.org/index.php?title=Main_Page#Compiler_support) and uncompress on folder `C:\dev\eigen-3.4.0`
+- Download Dirent for Windows from official [site](https://github.com/tronkko/dirent) and uncompress on folder `C:\dev\dirent`
+- Download precompiled Boost from official [site](https://sourceforge.net/projects/boost/files/boost-binaries/). Tested with `1.81.0`
+- Download Visual Studio 2022. Tested with `17.4.4`. Enable the Desktop C++ workload.
+
 # Installation
 
 Installation may require some familiarity with C++, make, and Python. 
@@ -69,6 +79,12 @@ Only processing option (reads a previously simulated instance and computes stats
 Important: provide the number of sims --nsims to be processed
 ```
 $ python main.py --input-instance-folder ../data/Sub40x40/ --output-folder ../results/Sub40x40_Previous_simulation --nsims 10 --stats --allPlots --onlyProcessing
+```
+
+## Windows
+Tested with this command line
+```
+python main.py --input-instance-folder ../data/Sub40x40/ --output-folder ../../results/Sub40x40 --ignitions --sim-years 1 --nsims 5 --finalGrid --weather rows --nweathers 1 --Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --stats --allPlots --IgnitionRad 5 --grids --combine
 ```
 
 # Output examples
