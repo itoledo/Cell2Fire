@@ -19,7 +19,8 @@
 	- Download & install precompiled Boost from official [site](https://sourceforge.net/projects/boost/files/boost-binaries/). Tested with `1.81.0` (like https://sourceforge.net/projects/boost/files/boost-binaries/1.81.0/boost_1_81_0-msvc-14.3-64.exe/download)
 
 - Setup Debug & Release project properties to test the .exe
-	Debug -> Cell2Fire Debug Properties:
+	Debug -> Cell2Fire Debug Properties:  
+
 		- Command Arguments: --input-instance-folder ..\data\Sub40x40/ --output-folder ..\..\results\Sub40x40 --ignitions --sim-years 1 --nsims 5 --finalGrid --weather rows --nweathers 1 --Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --stats --allPlots --IgnitionRad 5 --grids --combine  
 
 		- Working Directory: $(MSBuildProjectDirectory)\..
