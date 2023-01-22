@@ -82,6 +82,13 @@ $ python main.py --input-instance-folder ../data/Sub40x40/ --output-folder ../re
 ```
 
 ## Windows
+Edit your project properties (Debug -> Cell2Fire Debug Properties), then in Debugging section enter the following:
+
+- Command Arguments: `--input-instance-folder ..\data\Sub40x40/ --output-folder ..\..\results\Sub40x40 --ignitions --sim-years 1 --nsims 5 --finalGrid --weather rows --nweathers 1 --Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --stats --allPlots --IgnitionRad 5 --grids --combine`
+- Working Directory: `$(MSBuildProjectDirectory)\..`
+
+Then you'll be able to debug from MSVC.
+
 Tested with this command line
 ```
 python main.py --input-instance-folder ../data/Sub40x40/ --output-folder ../../results/Sub40x40 --ignitions --sim-years 1 --nsims 5 --finalGrid --weather rows --nweathers 1 --Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --stats --allPlots --IgnitionRad 5 --grids --combine
