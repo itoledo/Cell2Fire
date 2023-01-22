@@ -70,7 +70,16 @@ float surf_fuel_consump(inputs *inp);
 
 float fire_intensity(float fc,float ros);
 
-void setup_const(fuel_coefs *ptr);
+#ifdef __cplusplus
+extern "C" {
+#endif
+    void setup_const(fuel_coefs* ptr);
+    void calculate(inputs * data, fuel_coefs * ptr, main_outs * at,
+        snd_outs * sec, fire_struc * hptr, fire_struc * fptr, fire_struc * bptr);
+#ifdef __cplusplus
+}
+#endif
+
 
 char get_fueltype_number(fuel_coefs **ptr,char ft[4]);
 
@@ -121,9 +130,6 @@ float flank_fire_behaviour(inputs *inp,fuel_coefs *ptr,main_outs *at,
                              fire_struc *f);
 
 void set_all(fire_struc *ptr, int time);
-
-void calculate(inputs *data,fuel_coefs *ptr,main_outs *at,
-      snd_outs *sec,fire_struc *hptr,fire_struc *fptr,fire_struc *bptr);
 
 void zero_main(main_outs *m);
 

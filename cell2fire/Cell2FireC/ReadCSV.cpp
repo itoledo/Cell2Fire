@@ -86,6 +86,9 @@ void CSVReader::parseDF(inputs * df_ptr, std::vector<std::vector<std::string>> &
 	for (i=1; i <= NCells; i++){
 		//printf("Populating DF for cell %d\n", i);
 		faux = DF[i][0].append(" ").c_str();
+
+		if (DF[i][1].compare("") == 0) mon = 0;
+		else mon = std::stoi(DF[i][1], &sz);
 		
 		if (DF[i][2].compare("") == 0) jd = 0;
 		else jd = std::stoi (DF[i][2] ,&sz);
@@ -449,7 +452,7 @@ void CSVReader::parseForestDF(forestDF * frt_ptr, std::vector<std::vector<std::s
 						adjCells.push_back(Aux);
                         n++;    
 					}
-                    if (c>0 and c<cols-1){    
+                    if (c>0 && c<cols-1){    
                         Aux = {{North,n-cols}, {NorthEast, n-cols+1}, {NorthWest,n-cols-1}, {South,-1}, 
 									{SouthEast,-1} , {SouthWest,-1}, {East,n+1}, {West,n-1}};
 						adjCells.push_back(Aux);

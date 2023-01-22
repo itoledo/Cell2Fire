@@ -437,6 +437,14 @@ void Cell2Fire::InitCell(int id){
 	if (this->args.verbose) it2->second.print_info();
 }
 
+inline char separator()
+{
+#if defined _WIN32 || defined __CYGWIN__
+	return '\\';
+#else
+	return '/';
+#endif
+}
 
 // Resets the instance/object
 void Cell2Fire::reset(int rnumber, double rnumber2){
@@ -455,21 +463,25 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	this->done = false;
 	this->fire_period = vector<int>(this->args.TotalYears, 0);
 	
+
+
 	// Initial status grid folder
 	if(this->args.OutputGrids){
 		CSVWriter CSVFolder("","");
-		this->gridFolder = "mkdir -p " + this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim);
+		this->gridFolder = this->args.OutFolder + separator() + "Grids" + separator();
 		CSVFolder.MakeDir(this->gridFolder);
-		this->gridFolder = this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim) + "/";
+		this->gridFolder = this->args.OutFolder + separator() + "Grids" + separator() + "Grids" + std::to_string(this->sim);
+		CSVFolder.MakeDir(this->gridFolder);
+		this->gridFolder = this->args.OutFolder + separator() + "Grids" + separator() + "Grids" + std::to_string(this->sim) + separator();
 		//DEBUGstd::cout << "\nInitial Grid folder was generated in " << this->gridFolder << std::endl;
 	}
 	
 	// Messages Folder
 	if(this->args.OutMessages){
 		CSVWriter CSVFolder("","");
-		this->messagesFolder = "mkdir -p " + this->args.OutFolder + "/Messages/";
+		this->messagesFolder = this->args.OutFolder + separator() + "Messages";
 		CSVFolder.MakeDir(this->messagesFolder);
-		this->messagesFolder = this->args.OutFolder + "/Messages/";
+		this->messagesFolder = this->args.OutFolder + separator() + "Messages" + separator();
 	}
 		
 	// Random Weather 
@@ -480,7 +492,7 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	
 	if(this->args.WeatherOpt.compare("random") == 0){
 		// Random Weather 	
-		this->CSVWeather.fileName = this->args.InFolder + "Weathers/Weather" + std::to_string(rnumber) + ".csv" ;
+		this->CSVWeather.fileName = this->args.InFolder + "Weathers" + separator() + "Weather" + std::to_string(rnumber) + ".csv" ;
 
 		/* Weather DataFrame */
     try {
@@ -1100,15 +1112,15 @@ void Cell2Fire::Results(){
 	if(this->args.FinalGrid){
 		CSVWriter CSVFolder("","");
 		if (this->args.OutFolder.empty())
-			this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts/Grids/Grids" + std::to_string(this->sim);
+			this->gridFolder = this->args.InFolder + "simOuts" + separator() + "Grids/Grids" + std::to_string(this->sim);
 		else
-			this->gridFolder = "mkdir -p " + this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim);
+			this->gridFolder = this->args.OutFolder + separator() + "Grids" + separator() + "Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
 		
 		if (this->args.OutFolder.empty())
-			this->gridFolder = this->args.InFolder + "simOuts/Grids/Grids" + std::to_string(this->sim) + "/";
+			this->gridFolder = this->args.InFolder + "simOuts" + separator() + "Grids" + separator() + "Grids" + std::to_string(this->sim) + separator();
 		else
-			this->gridFolder = this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim) + "/";
+			this->gridFolder = this->args.OutFolder + separator() + "Grids" + separator() + "Grids" + std::to_string(this->sim) + separator();
 		//std::string gridName = this->gridFolder + "FinalStatus_" + std::to_string(this->sim) + ".csv";
 		outputGrid();
 		
