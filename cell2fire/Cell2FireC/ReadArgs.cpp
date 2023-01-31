@@ -24,134 +24,156 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
     return std::find(begin, end, option) != end;
 }
 
-void parseArgs(int argc, char * argv[], arguments * args_ptr)
+void parseArgs(int argc, char* argv[], arguments* args_ptr)
 {
 	// Help
-    if(cmdOptionExists(argv, argv+argc, "-h")){
-        printf("-------------------------------------------\n         Help manual!!! \n-------------------------------------------\n");
-    }
-	
+	if (cmdOptionExists(argv, argv + argc, "-h")) {
+		printf("-------------------------------------------\n         Help manual!!! \n-------------------------------------------\n");
+	}
+
 	// Empty default
 	char empty = '\0';
-	
+
 	// Strings
 	//--input-instance-folder
-	char * input_folder = getCmdOption(argv, argv + argc, "--input-instance-folder");
-    if (input_folder){
-        printf("InFolder: %s \n", input_folder);
-    }
+	char* input_folder = getCmdOption(argv, argv + argc, "--input-instance-folder");
+	if (input_folder) {
+		printf("InFolder: %s \n", input_folder);
+	}
 	else input_folder = &empty;
-	
+
 	//--output-folder
-	char * output_folder = getCmdOption(argv, argv + argc, "--output-folder");
-    if (output_folder){
-        printf("OutFolder: %s \n", output_folder );
-    }
+	char* output_folder = getCmdOption(argv, argv + argc, "--output-folder");
+	if (output_folder) {
+		printf("OutFolder: %s \n", output_folder);
+	}
 	else output_folder = &empty;
-	
+
 	//--weather
-	char * input_weather = getCmdOption(argv, argv + argc, "--weather");
-    if (input_weather){
-        printf("WeatherOpt: %s \n", input_weather);
-    }
+	char* input_weather = getCmdOption(argv, argv + argc, "--weather");
+	if (input_weather) {
+		printf("WeatherOpt: %s \n", input_weather);
+	}
 	else input_weather = &empty;
-	
+
 	//--HarvestPlan
-	char * input_hplan = getCmdOption(argv, argv + argc, "--HarvestPlan");
-    if (input_hplan){
-        printf("HarvestPlan: %s \n", input_hplan);
-    }
+	char* input_hplan = getCmdOption(argv, argv + argc, "--HarvestPlan");
+	if (input_hplan) {
+		printf("HarvestPlan: %s \n", input_hplan);
+	}
 	else input_hplan = &empty;
-		
+
 	// Booleans
 	bool out_messages = false;
+	bool out_fire_behavior = false;
 	bool out_trajectories = false;
-	bool no_output = false; 
+	bool no_output = false;
 	bool verbose_input = false;
 	bool input_ignitions = false;
 	bool out_grids = false;
 	bool out_finalgrid = false;
 	bool prom_tuned = false;
-	bool out_stats = false;	
+	bool out_stats = false;
 	bool bbo_tuning = false;
-	
+	bool allow_cros = false;
+
 	//--out-messages
-    if(cmdOptionExists(argv, argv+argc, "--output-messages")){
-        out_messages = true;
-        printf("OutMessages: %d \n", out_messages);
-    }
-	
+	if (cmdOptionExists(argv, argv + argc, "--output-messages")) {
+		out_messages = true;
+		printf("OutMessages: %d \n", out_messages);
+	}
+
+	//--fire-behavior
+	if (cmdOptionExists(argv, argv + argc, "--out-behavior")) {
+		out_fire_behavior = true;
+		printf("OutMessages: %d \n", out_fire_behavior);
+	}
+
 	//--trajectories
-    if(cmdOptionExists(argv, argv+argc, "--trajectories")){
-        out_trajectories = true;
-        printf("Trajectories: %d \n", out_trajectories);
-    }
-	
+	if (cmdOptionExists(argv, argv + argc, "--trajectories")) {
+		out_trajectories = true;
+		printf("Trajectories: %d \n", out_trajectories);
+	}
+
 	//--no-output
-	if(cmdOptionExists(argv, argv+argc, "--no-output")){
+	if (cmdOptionExists(argv, argv + argc, "--no-output")) {
 		no_output = true;
 		printf("noOutput: %d \n", no_output);
-    }
-	
+	}
+
 	//--verbose
-	if(cmdOptionExists(argv, argv+argc, "--verbose")){
-        verbose_input = true;
+	if (cmdOptionExists(argv, argv + argc, "--verbose")) {
+		verbose_input = true;
 		printf("verbose: %d \n", verbose_input);
-    }
-	
+	}
+
 	//--ignitions
-	if(cmdOptionExists(argv, argv+argc, "--ignitions")){
-        input_ignitions = true;
-        printf("Ignitions: %d \n", input_ignitions);
-    }
-	
+	if (cmdOptionExists(argv, argv + argc, "--ignitions")) {
+		input_ignitions = true;
+		printf("Ignitions: %d \n", input_ignitions);
+	}
+
 	//--grids
-	if(cmdOptionExists(argv, argv+argc, "--grids")){
+	if (cmdOptionExists(argv, argv + argc, "--grids")) {
 		out_grids = true;
 		printf("OutputGrids: %d \n", out_grids);
-    }
-	
+	}
+
 	//--final-grid
-	if(cmdOptionExists(argv, argv+argc, "--final-grid")){
+	if (cmdOptionExists(argv, argv + argc, "--final-grid")) {
 		out_finalgrid = true;
 		printf("FinalGrid: %d \n", out_finalgrid);
-    }
-	
-	//--Prom_tuned
-	if(cmdOptionExists(argv, argv+argc, "--PromTuned")){
-        prom_tuned = true;
-		printf("PromTuned: %d \n", prom_tuned);
-    }
-	
-	//--statistics
-	if(cmdOptionExists(argv, argv+argc, "--statistics")){
-        out_stats = true;
-		printf("Statistics: %d \n", out_stats);
-    }
-	
-	//--bbo
-	if(cmdOptionExists(argv, argv+argc, "--bbo")){
-        bbo_tuning = true;
-		printf("BBOTuning: %d \n", out_stats);
-    }
+	}
 
-	
+	//--Prom_tuned
+	if (cmdOptionExists(argv, argv + argc, "--PromTuned")) {
+		prom_tuned = true;
+		printf("PromTuned: %d \n", prom_tuned);
+	}
+
+	//--statistics
+	if (cmdOptionExists(argv, argv + argc, "--statistics")) {
+		out_stats = true;
+		printf("Statistics: %d \n", out_stats);
+	}
+
+	//--bbo
+	if (cmdOptionExists(argv, argv + argc, "--bbo")) {
+		bbo_tuning = true;
+		printf("BBOTuning: %d \n", out_stats);
+	}
+
+	//--cros
+	if (cmdOptionExists(argv, argv + argc, "--cros")) {
+		allow_cros = true;
+		printf("CrownROS: %d \n", allow_cros);
+	}
+
+
 	// Floats and ints
 	// defaults
 	int dsim_years = 1;
 	int dnsims = 1;
-	int dweather_period_len= 60;
+	int dweather_period_len = 60;
 	int dweather_files = 1;
-	int dmax_fire_periods= 10000000;
+	int dmax_fire_periods = 10000000;
 	int dseed = 123;
 	int diradius = 0;
+	int dnthreads = 1;
+	int dfmc=80;
 	float dROS_Threshold= 0.1;
 	float dHFI_Threshold= 0.1;
+	float dCROS_Threshold= 0.5;
+	float dCROSAct_Threshold= 1.0;
 	float dROSCV= 0.;
 	float dHFactor = 1.0;
 	float dFFactor = 1.0;
 	float dBFactor = 1.0;
 	float dEFactor = 1.0;
+	float dCBDFactor = 0.0;
+	float dCBHFactor = 1.0;
+	float dCCFFactor = 0.0;
+	float dROS10Factor = 3.34;
 	float dinput_PeriodLen= 1.;
 	
 	// aux 
@@ -208,6 +230,15 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
     } 
 	else args_ptr->IgnitionRadius =  diradius;
 	
+
+	//--fmc
+	char * input_fmc = getCmdOption(argv, argv + argc, "--fmc");
+    if (input_fmc){
+        printf("fmc: %s \n", input_fmc);
+		args_ptr->fmc = std::stoi (input_fmc ,&sz);  
+    }
+	else args_ptr->fmc = dfmc; 
+	
 	
 	//--ROS-Threshold
 	char * ROS_Threshold = getCmdOption(argv, argv + argc, "--ROS-Threshold");
@@ -217,6 +248,14 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
     }
 	else args_ptr->ROSThreshold = dROS_Threshold;
 	
+	//--CROS-Threshold
+	char * CROS_Threshold = getCmdOption(argv, argv + argc, "--CROS-Threshold");
+    if (CROS_Threshold){
+        printf("CROSThreshold: %s \n", CROS_Threshold);
+		args_ptr->CROSThreshold = std::stof (CROS_Threshold ,&sz); 
+    }
+	else args_ptr->CROSThreshold = dCROS_Threshold;
+	
 	//--HFI-Threshold
 	char * HFI_Threshold = getCmdOption(argv, argv + argc, "--HFI-Threshold");
     if (HFI_Threshold){
@@ -224,6 +263,15 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 		args_ptr->HFIThreshold = std::stof (HFI_Threshold ,&sz);
     }
 	else args_ptr->HFIThreshold = dHFI_Threshold;
+	
+	//--CROSAct-Threshold
+	char * CROSAct_Threshold = getCmdOption(argv, argv + argc, "--CROSAct-Threshold");
+    if (CROSAct_Threshold){
+        printf("CROSActThreshold: %s \n", CROSAct_Threshold);
+		args_ptr->CROSActThreshold = std::stof (CROSAct_Threshold ,&sz); 
+    }
+	else args_ptr->CROSThreshold = dCROS_Threshold;
+	
 	
 	//--HFactor
 	char * H_Factor = getCmdOption(argv, argv + argc, "--HFactor");
@@ -256,6 +304,30 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 		args_ptr->EFactor = std::stof (E_Factor ,&sz); 
     }
 	else args_ptr->EFactor = dEFactor;
+		
+	///--CBDFactor
+	char * CBD_Factor = getCmdOption(argv, argv + argc, "--CBDFactor");
+    if (CBD_Factor){
+        printf("CBDFactor: %s \n", CBD_Factor);
+		args_ptr->CBDFactor = std::stof (CBD_Factor ,&sz); 
+    }
+	else args_ptr->CBDFactor = dCBDFactor;
+	
+	///--CCFFactor
+	char * CCF_Factor = getCmdOption(argv, argv + argc, "--CCFFactor");
+    if (CCF_Factor){
+        printf("CCFFactor: %s \n", CCF_Factor);
+		args_ptr->CCFFactor = std::stof (CCF_Factor ,&sz); 
+    }
+	else args_ptr->CCFFactor = dCCFFactor;
+	
+	///--ROS10Factor
+	char * ROS10_Factor = getCmdOption(argv, argv + argc, "--ROS10Factor");
+    if (ROS10_Factor){
+        printf("ROS10Factor: %s \n", ROS10_Factor);
+		args_ptr->ROS10Factor = std::stof (ROS10_Factor, &sz); 
+    }
+	else args_ptr->ROS10Factor = dROS10Factor;
 	
 	//--ROS-CV
 	char * ROS_CV = getCmdOption(argv, argv + argc, "--ROS-CV");
@@ -281,6 +353,14 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
     }
 	else args_ptr->seed = dseed;
 	
+	//--nthreads  (int)
+	char* nthreads = getCmdOption(argv, argv + argc, "--nthreads");
+	if (nthreads) {
+		printf("nthreads: %s \n", nthreads);
+		args_ptr->nthreads = std::stoi(nthreads, &sz);
+	}
+	else args_ptr->nthreads = dnthreads;
+
 	// Populate structure
 	// Strings 
 	if (input_folder == &empty){
@@ -312,6 +392,7 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 		
 	// booleans
 	args_ptr->OutMessages = out_messages;
+	args_ptr->OutFireBehavior = out_fire_behavior;
 	args_ptr->Trajectories = out_trajectories; 
 	args_ptr->NoOutput = no_output;
 	args_ptr->verbose = verbose_input; 
@@ -320,7 +401,8 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 	args_ptr->FinalGrid = out_finalgrid;
 	args_ptr->PromTuned = prom_tuned;
 	args_ptr->Stats = out_stats;   
-	args_ptr->BBOTuning = bbo_tuning;   
+	args_ptr->BBOTuning = bbo_tuning;
+	args_ptr->AllowCROS = allow_cros;	
 	
 }
 
@@ -332,7 +414,8 @@ void printArgs(arguments args){
 	std::cout << "NWeatherFiles: " << args.NWeatherFiles << std::endl;	
 	std::cout << "MinutesPerWP: " << args.MinutesPerWP << std::endl; 
 	std::cout << "MaxFirePeriods: " << args.MaxFirePeriods << std::endl; 
-	std::cout << "Messages: " << args.OutMessages << std::endl; 
+	std::cout << "Messages: " << args.OutMessages << std::endl;
+	std::cout << "FireBehavior: " << args.OutFireBehavior << std::endl;
 	std::cout << "HarvestPlan: " << args.HarvestPlan << std::endl; 
 	std::cout << "TotalYears: " << args.TotalYears << std::endl; 
 	std::cout << "TotalSims: " << args.TotalSims << std::endl; 
@@ -347,7 +430,8 @@ void printArgs(arguments args){
 	std::cout << "noOutput: " << args.NoOutput << std::endl; 
 	std::cout << "verbose: " << args.verbose << std::endl; 
 	std::cout << "seed: " << args.seed << std::endl; 
-	
+	std::cout << "nthreads: " << args.nthreads << std::endl;
+
 	
 	
 }

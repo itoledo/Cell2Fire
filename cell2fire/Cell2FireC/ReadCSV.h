@@ -1,7 +1,8 @@
 #ifndef READCSV
 #define READCSV
 
-#include "FBP5.0.h"
+#include "FuelModelSpain.h"
+#include "ReadArgs.h"
 
 #include <iostream>
 #include <fstream>
@@ -18,16 +19,17 @@
 *   Weather structure
 */
 typedef struct
-   { std::string scenario, datetime;
-      float apcp, tmp, rh, ws, ffmc, dmc, dc, isi, bui, fwi;
-      int waz;
+   { std::string instance, datetime;
+      float ws, waz;
+      int scenario;
    } weatherDF;
    
  /*
 *   Forest structure
 */
 typedef struct
-   { int cellside, rows, cols; 
+   { int cellside, rows, cols;
+	double xllcorner, yllcorner;
       std::vector<std::unordered_map<std::string, int>> adjCells;
 	  std::vector<std::vector<int>> coordCells;
    } forestDF;
@@ -51,13 +53,16 @@ public:
 	//Print data to console (Debug)
 	void printData(std::vector<std::vector<std::string>> & DF);
 	
-	//Populate DF 
-	void parseDF(inputs * df_ptr, std::vector<std::vector<std::string>> & DF, int NCells);
+	//Populate DF (Spanish version)
+	void parseDF(inputs * df_ptr, std::vector<std::vector<std::string>> & DF, arguments* args_ptr,int NCells);
 	
-	// Populate NFtypes
+	// Populate NFtypes (Spanish version)
 	void parseNDF(std::vector<int> & NFTypes, std::vector<std::vector<std::string>> & DF, int NCells);
 	
-	//Populate Weather DF
+	// Populate Probabilities
+	void parsePROB(std::vector<float>& probabilities, std::vector<std::vector<std::string>>& DF, int NCells);
+
+	//Populate Weather DF (Spanish version)
 	void parseWeatherDF(weatherDF * wt_ptr, std::vector<std::vector<std::string>> & DF, int WPeriods);
 	
 	// Populate Ignition Points

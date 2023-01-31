@@ -1,7 +1,7 @@
 // Include classes
 #include "CellsFBP.h"
 #include "SpottingFBP.h"
-#include "FBP5.0.h"
+#include "FuelModelSpain.h"
 #include "ReadCSV.h"
 #include "ReadArgs.h"
 #include "Ellipse.h"
@@ -238,6 +238,22 @@ void CellsFBP::ros_distr(double thetafire, double forward, double flank, double 
 }			
 		
 
+void CellsFBP::ros_distr_V2(double thetafire, double a, double b, double c, double EFactor) {  
+    
+	// Ros allocation for each angle inside the dictionary
+	for (auto & angle : this->ROSAngleDir) {
+        double offset = angle.first - thetafire;
+		
+		if (offset < 0) {
+            offset += 360;
+        }
+		if (offset > 360) {
+            offset -= 360;
+        }
+        this->ROSAngleDir[angle.first] = rhoTheta(offset, a, b) * EFactor;
+    }	
+}					
+
 /*
 	Returns      double
 	
@@ -251,6 +267,25 @@ double CellsFBP::allocate(double offset, double base, double ros1, double ros2) 
     double d = (offset - base) / 90;
     return (1 - d) * ros1 + d * ros2;
 }
+
+
+/*
+	Slope effect
+	Inputs: 
+		elev_i: elevation of burning cell
+		elev_j: elevation of cell reached by fire
+		cellsize: side of a cell 
+*/
+
+float CellsFBP::slope_effect(float elev_i, float elev_j, int cellsize)
+  {
+	float ps_ij = (elev_j - elev_i) / cellsize;
+    float se;
+    se = 1. + 0.023322 * ps_ij + 0.00013585 * std::pow(ps_ij, 2) ;
+    
+    return se;
+  }
+
 
 
 /*
@@ -269,9 +304,9 @@ double CellsFBP::allocate(double offset, double base, double ros1, double ros2) 
 */
         
 std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & AvailSet,      
-                                                          inputs * df_ptr, fuel_coefs * coef, 
+                                                          inputs df_ptr[], fuel_coefs * coef, 
 														  std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
-														  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
+														  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell, std::vector<float>* crownMetrics,
 														  double randomROS) 
 	{
 	// Special flag for repetition (False = -99 for the record)
@@ -282,105 +317,78 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 	msg_list_aux.push_back(0);
     std::vector<int> msg_list;
 
-	df_ptr->waz = wdf_ptr->waz;
-	df_ptr->ws = wdf_ptr->ws;
-	df_ptr->ffmc = wdf_ptr->ffmc;
-	df_ptr->bui = wdf_ptr->bui;	
+	// Populate Inputs 
+	df_ptr[this->realId-1].waz = wdf_ptr->waz;
+	df_ptr[this->realId-1].ws = wdf_ptr->ws;
+	df_ptr[this->realId-1].scen = wdf_ptr->scenario;
+	df_ptr[this->realId-1].factor_cbd = args->CBDFactor;   
+	df_ptr[this->realId-1].factor_ccf = args->CCFFactor;
+	df_ptr[this->realId-1].factor_ros10 = args->ROS10Factor;
+	df_ptr[this->realId-1].factor_actv = args->CROSActThreshold;
+	df_ptr[this->realId-1].cros = args->AllowCROS;
+	df_ptr[this->realId-1].verbose = args->verbose;
 	
 	// Compute main angle and ROSs: forward, flanks and back
-    main_outs mainstruct;
+    main_outs mainstruct, metrics;
     snd_outs sndstruct;
     fire_struc headstruct, backstruct, flankstruct;
 
 	// Calculate parameters
-	calculate(df_ptr, coef, &mainstruct, &sndstruct, &headstruct, &flankstruct, &backstruct);
+	calculate(&df_ptr[this->realId-1], coef, &mainstruct, &sndstruct, &headstruct, &flankstruct, &backstruct);
 	
 	/*  ROSs DEBUG!   */
 	if(args->verbose){
 		std::cout << "*********** ROSs debug ************" << std::endl;
 		std::cout <<  "-------Input Structure--------" << std::endl;
-		std::cout <<  "fueltype: " << df_ptr->fueltype << std::endl;
-		std::cout <<  "ffmc: " << df_ptr->ffmc << std::endl;
-		std::cout <<  "ws: " << df_ptr->ws << std::endl;
-		std::cout <<  "gfl: " << df_ptr->gfl << std::endl;
-		std::cout <<  "bui: " << df_ptr->bui << std::endl;
-		std::cout <<  "lat: " << df_ptr->lat << std::endl;
-		std::cout <<  "lon: " << df_ptr->lon << std::endl;
-		std::cout <<  "time: " << df_ptr->time << std::endl;
-		std::cout <<  "pattern: " << df_ptr->pattern << std::endl;
-		std::cout <<  "mon: " << df_ptr->mon << std::endl;
-		std::cout <<  "jd: " << df_ptr->jd << std::endl;
-		std::cout <<  "jd_min: " << df_ptr->jd_min << std::endl;
-		std::cout <<  "waz: " << df_ptr->waz << std::endl;
-		std::cout <<  "ps: " << df_ptr->ps << std::endl;
-		std::cout <<  "saz: " << df_ptr->saz << std::endl;
-		std::cout <<  "pc: " << df_ptr->pc << std::endl;
-		std::cout <<  "pdf: " << df_ptr->pdf << std::endl;
-		std::cout <<  "cur: " << df_ptr->cur << std::endl;
-		std::cout <<  "elev: " << df_ptr->elev << std::endl;
-		std::cout <<  "hour: " << df_ptr->hour << std::endl;
-		std::cout <<  "hourly: " << df_ptr->hourly << std::endl;
+		std::cout <<  "fueltype: " << df_ptr[this->realId-1].fueltype << std::endl;
+		std::cout <<  "nfueltype: " << df_ptr[this->realId-1].nftype << std::endl;
+		std::cout <<  "ws: " << df_ptr[this->realId-1].ws << std::endl;
+		std::cout <<  "waz: " << df_ptr[this->realId-1].waz << std::endl;
+		std::cout <<  "ps: " << df_ptr[this->realId-1].ps << std::endl;
+		std::cout <<  "saz: " << df_ptr[this->realId-1].saz << std::endl;
+		std::cout <<  "cur: " << df_ptr[this->realId-1].cur << std::endl;
+		std::cout <<  "elev: " << df_ptr[this->realId-1].elev << std::endl;
+		std::cout <<  "cbd: " << df_ptr[this->realId-1].cbd << std::endl;
+		std::cout <<  "cbh: " << df_ptr[this->realId-1].cbh << std::endl;
+		std::cout <<  "ccf: " << df_ptr[this->realId-1].ccf << std::endl;
+		std::cout <<  "scen: " << df_ptr[this->realId-1].scen << std::endl;
+		std::cout <<  "cros: " << df_ptr[this->realId-1].cros << std::endl;
 		std::cout <<  "\n-------Mainout Structure--------" << std::endl;
-		std::cout << "hffmc: " << mainstruct.hffmc << std::endl;
-		std::cout << "sfc: " << mainstruct.sfc << std::endl;
-		std::cout << "csi: " << mainstruct.csi << std::endl;
-		std::cout << "rso: " << mainstruct.rso << std::endl;
-		std::cout << "fmc: " << mainstruct.fmc << std::endl;
-		std::cout << "sfi: " << mainstruct.sfi << std::endl;
 		std::cout << "rss: " << mainstruct.rss << std::endl;
-		std::cout << "isi:" << mainstruct.isi << std::endl;
-		std::cout << "be:" << mainstruct.be << std::endl;
-		std::cout << "sf:" << mainstruct.sf << std::endl;
-		std::cout << "raz: " << mainstruct.raz << std::endl;
-		std::cout << "wsv:" << mainstruct.wsv << std::endl;
-		std::cout << "ff: " << mainstruct.ff << std::endl;
-		std::cout << "jd_min:" << mainstruct.jd_min << std::endl;
-		std::cout << "jd:" << mainstruct.jd << std::endl;
+		std::cout << "angle: " << mainstruct.angle << std::endl;
+		std::cout << "fl: " << mainstruct.fl << std::endl;
+		std::cout << "fh: " << mainstruct.fh << std::endl;
+		std::cout << "a:" << mainstruct.a << std::endl;
+		std::cout << "b:" << mainstruct.b << std::endl;
+		std::cout << "c:" << mainstruct.c << std::endl;
 		std::cout << "covertype: " << mainstruct.covertype << std::endl;
+		std::cout << "cros: " << mainstruct.cros << std::endl;
 		std::cout <<  "\n-------Headout Structure--------" << std::endl;
 		std::cout <<  "ros: " << headstruct.ros * args->HFactor << std::endl;
-		std::cout <<  "dist: " << headstruct.dist << std::endl;
-		std::cout <<  "rost: " << headstruct.rost << std::endl;
-		std::cout <<  "cfb: " << headstruct.cfb << std::endl;
-		std::cout <<  "fc: " << headstruct.fc << std::endl;
-		std::cout <<  "cfc: "<< headstruct.cfc << std::endl;
-		std::cout <<  "time: " << headstruct.time << std::endl;
 		std::cout <<  "rss: " << headstruct.rss << std::endl;
-		std::cout <<  "isi: " << headstruct.isi << std::endl;
-		std::cout <<  "fd: " << headstruct.fd << std::endl;
-		std::cout <<  "fi: " << headstruct.fi << std::endl;
 		std::cout <<  "\n------- Flank Structure--------" << std::endl;
 		std::cout <<  "ros: " << flankstruct.ros * args->FFactor<< std::endl;
-		std::cout <<  "dist: " << flankstruct.dist << std::endl;
-		std::cout <<  "rost: " << flankstruct.rost << std::endl;
-		std::cout <<  "cfb: " << flankstruct.cfb << std::endl;
-		std::cout <<  "fc: " << flankstruct.fc << std::endl;
-		std::cout <<  "cfc: "<< flankstruct.cfc << std::endl;
-		std::cout <<  "time: " << flankstruct.time << std::endl;
 		std::cout <<  "rss: " << flankstruct.rss << std::endl;
-		std::cout <<  "isi: " << flankstruct.isi << std::endl;
-		std::cout <<  "fd: " << flankstruct.fd << std::endl;
-		std::cout <<  "fi: " << flankstruct.fi << std::endl;
 		std::cout <<  "\n------- Back Structure--------" << std::endl;
 		std::cout <<  "ros: " << backstruct.ros * args->BFactor << std::endl;
-		std::cout <<  "dist: " << backstruct.dist << std::endl;
-		std::cout <<  "rost: " << backstruct.rost << std::endl;
-		std::cout <<  "cfb: " << backstruct.cfb << std::endl;
-		std::cout <<  "fc: " << backstruct.fc << std::endl;
-		std::cout <<  "cfc: "<< backstruct.cfc << std::endl;
-		std::cout <<  "time: " << backstruct.time << std::endl;
 		std::cout <<  "rss: " << backstruct.rss << std::endl;
-		std::cout <<  "isi: " << backstruct.isi << std::endl;
-		std::cout <<  "fd: " << backstruct.fd << std::endl;
-		std::cout <<  "fi: " << backstruct.fi << std::endl;
+		std::cout <<  "\n------- Extra --------" << std::endl;
+		std::cout <<  "lb: " << sndstruct.lb * args->BFactor << std::endl;
 		std::cout << "*********** ROSs debug ************" << std::endl;
 	}
 	/*                         */
 	
-    double cartesianAngle = 270 - mainstruct.raz; //                 - 90;   // CHECK!!!!!
+    double cartesianAngle = 270 - wdf_ptr->waz; //                 - 90;   // CHECK!!!!!
 	if (cartesianAngle < 0){
 		cartesianAngle += 360;
 	} 
+	
+	// Adjusting from Spanish forests angle
+	cartesianAngle =  wdf_ptr->waz;
+	double offset = cartesianAngle + 270;
+    cartesianAngle = 360 - (offset >= 360) * (cartesianAngle - 90) - (offset < 360) * offset;
+    if (cartesianAngle == 360)  cartesianAngle = 0;
+	if (cartesianAngle < 0) cartesianAngle += 360; 
 	 
     double ROSRV = 0;
     if (args->ROSCV > 0) {
@@ -393,7 +401,7 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 
 	// Display if verbose True (FBP ROSs, Main angle, and ROS std (if included))
     if (args->verbose) {
-        std::cout << "Main Angle (raz): " << mainstruct.raz  << " Cartesian: " << cartesianAngle << std::endl;
+        std::cout << "Main Angle (raz): " << wdf_ptr->waz  << " Cartesian: " << cartesianAngle << std::endl;
         std::cout << "FBP Front ROS Value: " << headstruct.ros * args->HFactor << std::endl; 
         std::cout << "FBP Flanks ROS Value: " << flankstruct.ros * args->FFactor << std::endl;
         std::cout <<  "FBP Rear ROS Value: " << backstruct.ros * args->BFactor << std::endl;
@@ -407,11 +415,10 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 	if (args->verbose){
             std::cout << "\nSending message conditions" << std::endl;
             std::cout << "HROS: " << HROS << " Threshold: "<<  args->ROSThreshold << std::endl;
-            std::cout << "HeadStruct FI: " << headstruct.fi << " Threshold: " << args->HFIThreshold << std::endl;
 	}
 	
     // Check thresholds for sending messages	
-    if (HROS > args->ROSThreshold && headstruct.fi > args->HFIThreshold) {
+    if (HROS > args->ROSThreshold) {
         // True = -100
 		repeat = -100;	
 		
@@ -423,10 +430,16 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 		// ROS distribution method
         //ros_distr(mainstruct.raz,  headstruct.ros, flankstruct.ros, backstruct.ros);
 		//std::cout << "Entra a Ros Dist" << std::endl;
-		ros_distr(cartesianAngle,  
+		/*ros_distr(cartesianAngle,  
 					  headstruct.ros * args->HFactor, 
 					  flankstruct.ros * args->FFactor, 
 					  backstruct.ros * args->BFactor,
+					  args->EFactor);
+		*/			  
+		ros_distr_V2(cartesianAngle,  
+					  mainstruct.a * args->HFactor, 
+					  mainstruct.b * args->FFactor, 
+					  mainstruct.c * args->BFactor, 
 					  args->EFactor);
         //std::cout << "Sale de Ros Dist" << std::endl;		
 		
@@ -447,8 +460,14 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
                 std::cout << "     (angle, realized ros in m/min): (" << angle << ", " << ros << ")" << std::endl;
             }
 			            
+			// Slope effect 
+			float se = slope_effect(df_ptr[this->realId - 1].elev, df_ptr[nb-1].elev,  this->perimeter / 4.);
+			if (args->verbose) { 
+				std::cout << "Slope effect: " << se << std::endl;
+			}
+			
 			// Workaround PeriodLen in 60 minutes
-            this->fireProgress[nb] += ros * args->FirePeriodLen;   // Updates fire progress
+            this->fireProgress[nb] += ros * args->FirePeriodLen * se;   // Updates fire progress
 		
 		    // If the message arrives to the adjacent cell's center, send a message
             if (this->fireProgress[nb] >= this->distToCenter[nb]) {
@@ -456,7 +475,16 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 				FSCell->push_back(double(this->realId));
 				FSCell->push_back(double(nb));
 				FSCell->push_back(double(period));
-				FSCell->push_back(ros);
+				FSCell->push_back(std::ceil(ros * 100.0) / 100.0);
+				determine_destiny_metrics(&df_ptr[int(nb) - 1], coef, &metrics);
+				crownMetrics->push_back(double(this->realId));
+				crownMetrics->push_back(double(nb));
+				crownMetrics->push_back(double(std::ceil(ros * 100.0) / 100.0));
+				crownMetrics->push_back(mainstruct.byram);
+				crownMetrics->push_back(metrics.byram);
+				crownMetrics->push_back(mainstruct.cros);
+				crownMetrics->push_back(metrics.cros);
+
                 // cannot mutate ROSangleDir during iteration.. we do it like 10 lines down
                // toPop.push_back(angle);
                 /*if (verbose) {
@@ -514,7 +542,7 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & AvailSet,      
 																  inputs * df_ptr, fuel_coefs * coef, 
 																  std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
-																  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
+																  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell, std::vector<float>* crownMetrics,
 																  double randomROS, std::vector<float> & EllipseFactors) 
 	{
 	// Special flag for repetition (False = -99 for the record)
@@ -525,16 +553,21 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 	msg_list_aux.push_back(0);
     std::vector<int> msg_list;
 
-	df_ptr->waz = wdf_ptr->waz;
-	df_ptr->ws = wdf_ptr->ws;
-	df_ptr->ffmc = wdf_ptr->ffmc;
-	df_ptr->bui = wdf_ptr->bui;	
-	
 	// Compute main angle and ROSs: forward, flanks and back
-    main_outs mainstruct;
+    main_outs mainstruct, metrics;
     snd_outs sndstruct;
     fire_struc headstruct, backstruct, flankstruct;
 
+	// Populate inputs 
+	df_ptr->waz = wdf_ptr->waz;
+	df_ptr->ws = wdf_ptr->ws;
+	df_ptr->scen = wdf_ptr->scenario;
+	df_ptr->factor_cbd = args->CBDFactor;   
+	df_ptr->factor_ccf = args->CCFFactor;
+	df_ptr->factor_ros10 = args->ROS10Factor;
+	df_ptr->factor_actv = args->CROSActThreshold;
+	df_ptr->cros = args->AllowCROS;
+	
 	// Calculate parameters
 	calculate(df_ptr, coef, &mainstruct, &sndstruct, &headstruct, &flankstruct, &backstruct);
 	
@@ -543,87 +576,48 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 		std::cout << "*********** ROSs debug ************" << std::endl;
 		std::cout <<  "-------Input Structure--------" << std::endl;
 		std::cout <<  "fueltype: " << df_ptr->fueltype << std::endl;
-		std::cout <<  "ffmc: " << df_ptr->ffmc << std::endl;
 		std::cout <<  "ws: " << df_ptr->ws << std::endl;
-		std::cout <<  "gfl: " << df_ptr->gfl << std::endl;
-		std::cout <<  "bui: " << df_ptr->bui << std::endl;
-		std::cout <<  "lat: " << df_ptr->lat << std::endl;
-		std::cout <<  "lon: " << df_ptr->lon << std::endl;
-		std::cout <<  "time: " << df_ptr->time << std::endl;
-		std::cout <<  "pattern: " << df_ptr->pattern << std::endl;
-		std::cout <<  "mon: " << df_ptr->mon << std::endl;
-		std::cout <<  "jd: " << df_ptr->jd << std::endl;
-		std::cout <<  "jd_min: " << df_ptr->jd_min << std::endl;
 		std::cout <<  "waz: " << df_ptr->waz << std::endl;
 		std::cout <<  "ps: " << df_ptr->ps << std::endl;
 		std::cout <<  "saz: " << df_ptr->saz << std::endl;
-		std::cout <<  "pc: " << df_ptr->pc << std::endl;
-		std::cout <<  "pdf: " << df_ptr->pdf << std::endl;
 		std::cout <<  "cur: " << df_ptr->cur << std::endl;
 		std::cout <<  "elev: " << df_ptr->elev << std::endl;
-		std::cout <<  "hour: " << df_ptr->hour << std::endl;
-		std::cout <<  "hourly: " << df_ptr->hourly << std::endl;
 		std::cout <<  "\n-------Mainout Structure--------" << std::endl;
-		std::cout << "hffmc: " << mainstruct.hffmc << std::endl;
-		std::cout << "sfc: " << mainstruct.sfc << std::endl;
-		std::cout << "csi: " << mainstruct.csi << std::endl;
-		std::cout << "rso: " << mainstruct.rso << std::endl;
-		std::cout << "fmc: " << mainstruct.fmc << std::endl;
-		std::cout << "sfi: " << mainstruct.sfi << std::endl;
 		std::cout << "rss: " << mainstruct.rss << std::endl;
-		std::cout << "isi:" << mainstruct.isi << std::endl;
-		std::cout << "be:" << mainstruct.be << std::endl;
-		std::cout << "sf:" << mainstruct.sf << std::endl;
-		std::cout << "raz: " << mainstruct.raz << std::endl;
-		std::cout << "wsv:" << mainstruct.wsv << std::endl;
-		std::cout << "ff: " << mainstruct.ff << std::endl;
-		std::cout << "jd_min:" << mainstruct.jd_min << std::endl;
-		std::cout << "jd:" << mainstruct.jd << std::endl;
+		std::cout << "angle: " << mainstruct.angle << std::endl;
+		std::cout << "fl: " << mainstruct.fl << std::endl;
+		std::cout << "fh: " << mainstruct.fh << std::endl;
+		std::cout << "a:" << mainstruct.a << std::endl;
+		std::cout << "b:" << mainstruct.b << std::endl;
+		std::cout << "c:" << mainstruct.c << std::endl;
 		std::cout << "covertype: " << mainstruct.covertype << std::endl;
+		std::cout << "cros: " << mainstruct.cros << std::endl;
 		std::cout <<  "\n-------Headout Structure--------" << std::endl;
 		std::cout <<  "ros: " << headstruct.ros * args->HFactor << std::endl;
-		std::cout <<  "dist: " << headstruct.dist << std::endl;
-		std::cout <<  "rost: " << headstruct.rost << std::endl;
-		std::cout <<  "cfb: " << headstruct.cfb << std::endl;
-		std::cout <<  "fc: " << headstruct.fc << std::endl;
-		std::cout <<  "cfc: "<< headstruct.cfc << std::endl;
-		std::cout <<  "time: " << headstruct.time << std::endl;
 		std::cout <<  "rss: " << headstruct.rss << std::endl;
-		std::cout <<  "isi: " << headstruct.isi << std::endl;
-		std::cout <<  "fd: " << headstruct.fd << std::endl;
-		std::cout <<  "fi: " << headstruct.fi << std::endl;
 		std::cout <<  "\n------- Flank Structure--------" << std::endl;
 		std::cout <<  "ros: " << flankstruct.ros * args->FFactor<< std::endl;
-		std::cout <<  "dist: " << flankstruct.dist << std::endl;
-		std::cout <<  "rost: " << flankstruct.rost << std::endl;
-		std::cout <<  "cfb: " << flankstruct.cfb << std::endl;
-		std::cout <<  "fc: " << flankstruct.fc << std::endl;
-		std::cout <<  "cfc: "<< flankstruct.cfc << std::endl;
-		std::cout <<  "time: " << flankstruct.time << std::endl;
 		std::cout <<  "rss: " << flankstruct.rss << std::endl;
-		std::cout <<  "isi: " << flankstruct.isi << std::endl;
-		std::cout <<  "fd: " << flankstruct.fd << std::endl;
-		std::cout <<  "fi: " << flankstruct.fi << std::endl;
 		std::cout <<  "\n------- Back Structure--------" << std::endl;
 		std::cout <<  "ros: " << backstruct.ros * args->BFactor << std::endl;
-		std::cout <<  "dist: " << backstruct.dist << std::endl;
-		std::cout <<  "rost: " << backstruct.rost << std::endl;
-		std::cout <<  "cfb: " << backstruct.cfb << std::endl;
-		std::cout <<  "fc: " << backstruct.fc << std::endl;
-		std::cout <<  "cfc: "<< backstruct.cfc << std::endl;
-		std::cout <<  "time: " << backstruct.time << std::endl;
 		std::cout <<  "rss: " << backstruct.rss << std::endl;
-		std::cout <<  "isi: " << backstruct.isi << std::endl;
-		std::cout <<  "fd: " << backstruct.fd << std::endl;
-		std::cout <<  "fi: " << backstruct.fi << std::endl;
+		std::cout <<  "\n------- Extra --------" << std::endl;
+		std::cout <<  "lb: " << sndstruct.lb * args->BFactor << std::endl;
 		std::cout << "*********** ROSs debug ************" << std::endl;
 	}
 	/*                         */
 	
-    double cartesianAngle = 270 - mainstruct.raz; //                 - 90;   // CHECK!!!!!
+    double cartesianAngle = 270 - wdf_ptr->waz; //                 - 90;   // CHECK!!!!!
 	if (cartesianAngle < 0){
 		cartesianAngle += 360;
 	} 
+	
+	// Adjusting from Spanish forests angle
+	cartesianAngle =  wdf_ptr->waz;
+	double offset = cartesianAngle + 270;
+    cartesianAngle = 360 - (offset >= 360) * (cartesianAngle - 90) - (offset < 360) * offset;
+    if (cartesianAngle == 360)  cartesianAngle = 0;
+	if (cartesianAngle < 0) cartesianAngle += 360; 
 	 
     double ROSRV = 0;
     if (args->ROSCV > 0) {
@@ -636,7 +630,7 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 
 	// Display if verbose True (FBP ROSs, Main angle, and ROS std (if included))
     if (args->verbose) {
-        std::cout << "Main Angle (raz): " << mainstruct.raz  << " Cartesian: " << cartesianAngle << std::endl;
+        std::cout << "Main Angle (raz): " << wdf_ptr->waz  << " Cartesian: " << cartesianAngle << std::endl;
         std::cout << "FBP Front ROS Value: " << headstruct.ros * EllipseFactors[0] << std::endl; 
         std::cout << "FBP Flanks ROS Value: " << flankstruct.ros * EllipseFactors[1] << std::endl;
         std::cout <<  "FBP Rear ROS Value: " << backstruct.ros * EllipseFactors[2] << std::endl;
@@ -650,11 +644,10 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 	if (args->verbose){
             std::cout << "\nSending message conditions" << std::endl;
             std::cout << "HROS: " << HROS << " Threshold: "<<  args->ROSThreshold << std::endl;
-            std::cout << "HeadStruct FI: " << headstruct.fi << " Threshold: " << args->HFIThreshold << std::endl;
 	}
 	
     // Check thresholds for sending messages	
-    if (HROS > args->ROSThreshold && headstruct.fi > args->HFIThreshold) {
+    if (HROS > args->ROSThreshold) {
         // True = -100
 		repeat = -100;	
 		
@@ -666,10 +659,16 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 		// ROS distribution method
         //ros_distr(mainstruct.raz,  headstruct.ros, flankstruct.ros, backstruct.ros);
 		//std::cout << "Entra a Ros Dist" << std::endl;
-		ros_distr(cartesianAngle,  
+		/*ros_distr(cartesianAngle,  
 					  headstruct.ros * EllipseFactors[0], 
 					  flankstruct.ros * EllipseFactors[1], 
 					  backstruct.ros * EllipseFactors[2],
+					  EllipseFactors[3]);
+		*/		  
+		ros_distr_V2(cartesianAngle,  
+					  mainstruct.a * EllipseFactors[0], 
+					  mainstruct.b * EllipseFactors[1], 
+					  mainstruct.c * EllipseFactors[2],
 					  EllipseFactors[3]);
         //std::cout << "Sale de Ros Dist" << std::endl;		
 		
@@ -696,6 +695,14 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 				FSCell->push_back(double(nb));
 				FSCell->push_back(double(period));
 				FSCell->push_back(ros);
+				determine_destiny_metrics(&df_ptr[int(nb) - 1], coef, &metrics);
+				crownMetrics->push_back(double(this->realId));
+				crownMetrics->push_back(double(nb));
+				crownMetrics->push_back(double(ros));
+				crownMetrics->push_back(mainstruct.byram);
+				crownMetrics->push_back(metrics.byram);
+				crownMetrics->push_back(mainstruct.cros);
+				crownMetrics->push_back(metrics.cros);
                 // cannot mutate ROSangleDir during iteration.. we do it like 10 lines down
                // toPop.push_back(angle);
                 /*if (verbose) {
@@ -767,19 +774,25 @@ bool CellsFBP::get_burned(int period, int season, int NMsg, inputs df[],  fuel_c
     }
 
 	// Structures
-    main_outs mainstruct;
+    main_outs mainstruct, metrics;
     snd_outs sndstruct;
     fire_struc headstruct, backstruct, flankstruct;
 
 	// Compute main angle and ROSs: forward, flanks and back
 	df[this->id].waz = wdf_ptr->waz;
 	df[this->id].ws = wdf_ptr->ws;
-	df[this->id].ffmc = wdf_ptr->ffmc;
-	df[this->id].bui = wdf_ptr->bui;	
-    calculate(&(df[this->id]), coef, &mainstruct, &sndstruct, &headstruct, &flankstruct, &backstruct);
+	df[this->id].scen = wdf_ptr->scenario;
+	df[this->id].factor_cbd = args->CBDFactor;   
+	df[this->id].factor_ccf = args->CCFFactor;
+	df[this->id].factor_ros10 = args->ROS10Factor;
+	df[this->id].factor_actv = args->CROSActThreshold;
+	df[this->id].cros = args->AllowCROS;
+	
+	// Calculate
+	calculate(&(df[this->id]), coef, &mainstruct, &sndstruct, &headstruct, &flankstruct, &backstruct);
 
     if (args->verbose) { 
-		std::cout << "\nMain Angle :" << mainstruct.raz << std::endl;
+		std::cout << "\nMain Angle :" << wdf_ptr->waz << std::endl;
 		std::cout << "Front ROS Value :" << headstruct.ros * args->HFactor << std::endl;
 		std::cout << "Flanks ROS Value :" << flankstruct.ros * args->FFactor << std::endl;
 		std::cout << "Rear ROS Value :" << backstruct.ros * args->BFactor << std::endl;
@@ -866,23 +879,28 @@ bool CellsFBP::ignition(int period, int year, std::vector<int> & ignitionPoints,
 		//printf("\nWeather inside ignition:\n");
 		//std::cout << "waz: " << wdf_ptr->waz << "  ffmc: " <<    wdf_ptr->ffmc << "  bui: " <<   wdf_ptr->bui << std::endl;
 		
+		// Populate inputs 
 		df_ptr->waz = wdf_ptr->waz;
 		df_ptr->ws = wdf_ptr->ws;
-		df_ptr->ffmc = wdf_ptr->ffmc;
-		df_ptr->bui = wdf_ptr->bui;	
+		df_ptr->scen = wdf_ptr->scenario;
+		df_ptr->factor_cbd = args->CBDFactor;   
+		df_ptr->factor_ccf = args->CCFFactor;
+		df_ptr->factor_ros10 = args->ROS10Factor;
+		df_ptr->factor_actv = args->CROSActThreshold;
+		df_ptr->cros = args->AllowCROS;
 			
         calculate(df_ptr, coef, &mainstruct, &sndstruct, &headstruct, &flankstruct, &backstruct);
 
         if (args->verbose) {
 			std::cout << "\nIn ignition function" << std::endl;
-			std::cout << "Main Angle: " << mainstruct.raz << std::endl;
+			std::cout << "Main Angle: " << wdf_ptr->waz << std::endl;
 			std::cout << "Front ROS Value: " << headstruct.ros * args->HFactor << std::endl;
 			std::cout << "Flanks ROS Value: " << flankstruct.ros * args->FFactor << std::endl;
 			std::cout << "Rear ROS Value: " << backstruct.ros * args->BFactor << std::endl;
         }
 		
 		// Check a threshold for the ROS
-        if (headstruct.ros * args->HFactor > args->ROSThreshold && headstruct.fi > args->HFIThreshold) {
+        if (headstruct.ros * args->HFactor > args->ROSThreshold) {
             if (args->verbose) {
                 std::cout << "Head (ROS, FI) values of: (" << headstruct.ros * args->HFactor<< ", " << headstruct.fi  <<  ") are enough for ignition" << std::endl;
             }
