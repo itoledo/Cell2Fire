@@ -2,7 +2,7 @@
 #define CELLSFBP
 
 // include stuff
-#include "FBP5.0.h"
+#include "FuelModelSpain.h"
 #include "ReadCSV.h"
 #include "ReadArgs.h"
 #include "Ellipse.h"
@@ -64,17 +64,18 @@ class CellsFBP {
 	    void ros_distr_old(double thetafire, double forward, double flank, double back);
 		double rhoTheta(double theta, double a, double b);
 		void ros_distr(double thetafire, double forward, double flank, double back, double EFactor);
+		void ros_distr_V2(double thetafire, double a, double b, double c, double EFactor);
 		
         std::vector<int> manageFire(int period, std::unordered_set<int> & AvailSet,      
-                                                          inputs * df, fuel_coefs * coef, 
+                                                          inputs df[], fuel_coefs * coef, 
 														  std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
-														  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
+														  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell, std::vector<float> * crownMetrics,
 														  double randomROS);
 		
 		std::vector<int> manageFireBBO(int period, std::unordered_set<int> & AvailSet,      
 															inputs * df_ptr, fuel_coefs * coef, 
 															std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
-															arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
+															arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell, std::vector<float> * crownMetrics,
 															double randomROS, std::vector<float> & EllipseFactors);
 		
 		bool get_burned(int period, int season, int NMsg, inputs df[],  fuel_coefs * coef, arguments * args, weatherDF * wdf_ptr) ;
@@ -97,6 +98,7 @@ class CellsFBP {
 		
 	private:
 		double allocate(double offset, double base, double ros1, double ros2);
+		float slope_effect(float elev_i, float elev_j, int cellsize);
 };
 
 #endif

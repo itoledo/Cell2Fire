@@ -4,7 +4,7 @@
 // Headers
 #include "CellsFBP.h"
 #include "SpottingFBP.h"
-#include "FBP5.0.h"
+#include "FuelModelSpain.h"
 #include "ReadCSV.h"
 #include "WriteCSV.h"
 #include "ReadArgs.h"
@@ -48,9 +48,11 @@ class Cell2Fire {
 		 int year = 1;
 		 int gridNumber = 0;
 		 int weatherperiod = 0;
+		 int counter_wt = 0;
 		 long int nCells;
 		 int nIgnitions = 0;
-		 
+		 double xllcorner;
+		 double yllcorner;
 		 // Booleans
 		 bool noIgnition = true;  		//  None = -1
 		 bool messagesSent = false;
@@ -67,12 +69,17 @@ class Cell2Fire {
 		// Strings	
 		 string gridFolder;
 		 string messagesFolder;
+		 string rosFolder;
+		 string historyFolder;
 	
 		 // Vectors
 		 std::vector<int> fire_period;
 		 std::vector<std::vector<int>> coordCells;
 		 std::vector<std::unordered_map<std::string, int>> adjCells;
 		 std::vector<std::vector<std::string>> DF;
+		 std::vector<std::vector<std::string>> WDist;
+		 std::vector<std::string> WeatherHistory;
+		 std::vector<float> ignProb; // (long int&, int);
 		 std::vector<int> statusCells; //(long int, int);
 		 std::vector<int> fTypeCells; // (long int&, int); 
 		 std::vector<string> fTypeCells2; // (long int&, const char [9]);
@@ -80,6 +87,7 @@ class Cell2Fire {
 		 std::vector<int> IgnitionPoints;
 		 vector<int> burnedOutList;
 		 std::vector<double> FSCell;
+		 std::vector<float> crownMetrics;
 		 //std::vector<unordered_set<int>> IgnitionSets;
 		 std::vector<std::vector<int>> IgnitionSets;
 		 
@@ -98,14 +106,14 @@ class Cell2Fire {
 		
 		// Methods
 		void InitCell(int id);
-        void reset(int rnumber, double rnumber2);
-		bool RunIgnition(std::default_random_engine generator);
+        void reset(int rnumber, double rnumber2, int simExt);
+		bool RunIgnition(std::default_random_engine generator, int ep);
 		std::unordered_map<int, std::vector<int>> SendMessages();
 		void GetMessages(std::unordered_map<int, std::vector<int>> sendMessageList);
 		void Results();
 		void outputGrid();
 		void updateWeather();
-		void Step(std::default_random_engine generator);
+		void Step(std::default_random_engine generator, int ep);
 		void InitHarvested();
 		
 		// Utils
